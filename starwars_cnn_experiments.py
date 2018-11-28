@@ -1,7 +1,8 @@
 """
 
-Star Wars VGG experiments
-Transfer learning attempt
+Star Wars image Convelutional Nueral Network experiments
+CS545
+Fall 2018
 
 """
 
@@ -11,11 +12,14 @@ from keras.preprocessing import image as image_utils
 from keras.applications.imagenet_utils import decode_predictions
 from keras.applications.imagenet_utils import preprocess_input
 from keras.preprocessing.image import ImageDataGenerator
+from keras.utils import plot_model
 from keras.layers import Input, Flatten, Dense
 from keras.models import Model
 from keras.models import load_model
 from keras.applications.vgg16 import VGG16
 from keras.applications.vgg19 import VGG19
+from keras.applications.resnet50 import resnet50
+import matplotlib.pyplot as plt
 import json
 import argparse
 import os
@@ -23,7 +27,6 @@ import numpy as np
 
 classpath = './Classes/'
 datapath = './TestData/'
-
 
 
 """
@@ -46,6 +49,8 @@ def import_class_images(directory):
     print("Loading training images...")
     training_images = ImageDataGenerator()
     train_images = training_images.flow_from_directory(directory=classpath, target_size=(224,224), batch_size=32)
+
+    print(str(train_images.class_indices))
 
     label_map = (train_images.class_indices)
     label_map = dict((v,k) for k,v in label_map.items()) #flip k,v
@@ -106,6 +111,11 @@ def model_vgg19(class_cnt):
     model = VGG19(include_top=True,weights=None,classes=class_cnt)
     return model
 
+def model_resnet50(class_cnt):
+    model = RESNET50(include_top=True,weights=None,classes=class_cnt)
+    return model
+
+
 def train_model(model, train_images, epoch_cnt=30):
 
     model.compile(loss='mean_squared_error', optimizer='sgd')
@@ -113,9 +123,30 @@ def train_model(model, train_images, epoch_cnt=30):
     i = 0
     for i in range(len(train_images)):
        print("********* Starting Batch " + str(i+1) + " out of " + str(len(train_images)) + "*********")
-       model.fit(x=train_images[i][0], y=train_images[i][1], epochs=epoch_cnt)
-       #model.fit(x=xt, y=yk, epochs=20)
+       history = model.fit(x=train_images[i][0], y=train_images[i][1], epochs=epoch_cnt, validation_split=0.25, verbose=1)
 
+    #plot what the model looks like
+    plot_model(model, to_file='./' + model.name + '_visualization.png')
+
+    #TODO add an option to visual the history or not.       # Plot training & validation accuracy values
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.title('Model accuracy')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.savefig('./' + model.name + '_training_validation_accuracy.pdf')
+
+    # Plot training & validation loss values
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('Model loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.savefig('./' + model.name + '_training_validation_loss.pdf')
+
+    #save off the model so it can be loaded later.
     model.save('./' + model.name + '.h5')
 
 def classify(modeldata, classlabels, imageloc):
@@ -147,6 +178,34 @@ def classify(modeldata, classlabels, imageloc):
 
     return test_images
 
+def classify_image(modeldata, classlabels, imageloc):
+
+    model = load_model(modeldata)
+
+    with open(classlabels) as f:
+        labels = json.load(f)
+    #print(strlabels))
+    test_images = {}
+
+    image = image_utils.load_img(imageloc, target_size=(224,224))
+    image = image_utils.img_to_array(image)
+    image = np.expand_dims(image, axis=0)
+
+    results = model.predict(image)
+
+    #print(str(results))
+
+    predictions = []
+    for c in range(len(results[0])):
+        predictions.append( ('{:.11f}'.format(results[0][c]), labels[str(c)]) )
+    predictions.sort()
+    predictions.reverse()
+    test_images[imageloc] = predictions[:5]
+    #print("For filename: " + filename + "\n\t" + str(predictions[:5]))
+
+    return test_images
+
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -154,6 +213,9 @@ def main():
                     help="train a model")
     ap.add_argument("-c", "--classify", required=False, nargs=3, metavar=('modeldata', 'classlabels', 'imageloc'),
                     help="classify an image against a model. usage <model data> <classlabels> <image directory>")
+    ap.add_argument("-ci", "--classifyimage", required=False, nargs=3, metavar=('modeldata', 'classlabels', 'imageloc'),
+                    help="classify JUST ONE image against a model. usage <model data> <classlabels> <image file>")
+ 
     args = vars(ap.parse_args())
 
     if args['classify'] != None:
@@ -161,13 +223,17 @@ def main():
         with open('testdata_results.json', 'w') as outfile:
              json.dump(classifications, outfile, indent=4)
 
+    #classify a single image
+    if args['classifyimage'] != None:
+        classification = classify_image(args['classifyimage'][0], args['classifyimage'][1], args['classifyimage'][2])
+        print(str(classification))
 
     elif args['train'] != None:
-        #TODO add the type of VGG that is to be trained on instead of hard coding it like below
+        #TODO add the type of VGG, resnet50, or whatever that is to be trained on instead of hard coding it like below
         train_images, label_map = import_class_images(classpath)
     
-        model = model_vgg19_transfer(train_images.num_classes)
-        train_model(model, train_images, 75)
+        model = model_vgg19(train_images.num_classes)
+        train_model(model, train_images)
 
         #write out classes to a file
         with open(model.name + '_classes.json', 'w') as outfile:
