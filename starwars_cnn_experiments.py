@@ -13,6 +13,7 @@ from keras.applications.imagenet_utils import decode_predictions
 from keras.applications.imagenet_utils import preprocess_input
 from keras.preprocessing.image import ImageDataGenerator
 from keras.utils import plot_model
+from keras.utils import to_categorical
 from keras.layers import Input, Flatten, Dense
 from keras.models import Model
 from keras.models import load_model
@@ -220,7 +221,6 @@ def verify(modeldata, classlabels, imageloc):
     #should also contain class labels
     with open(classlabels) as f:
         labels = json.load(f)
-        #TODO create numpy arrays in the right shape for the model.    
     #print(str(labels))
     test_images = {}
 
@@ -236,12 +236,14 @@ def verify(modeldata, classlabels, imageloc):
             for i in labels[filename]:
                 tmplbl.append(i[0])
             tmplbl = np.array(tmplbl)
-            print(str(tmp)) 
-            print(str(tmp.shape)) 
+            #tmplbl = to_categorical(tmplbl, num_classes=19, dtype='float32')
+            print(str(tmplbl)) 
+            print(str(tmplbl.shape))
             #TODO create numpy array here with test classes.
             input()
             
-            results = model.evaluate(x=image, y=tmp)
+            #keras.utils.np_utils.to_categorical
+            results = model.evaluate(x=image, y=tmplbl)
             print(str(results))
             input()
 
