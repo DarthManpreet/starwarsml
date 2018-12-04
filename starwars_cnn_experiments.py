@@ -279,8 +279,7 @@ def accuracy(modeldata, classlabels, datalabels, imageloc):
 
     total = 0 
     correct = 0
-    confmatrix_actual = {}
-    confmatrix_predict = {}
+    confmatrix =  [ [ ] ]
 
     for root, dirs, files in os.walk(imageloc):
         for filename in files:
@@ -314,32 +313,16 @@ def accuracy(modeldata, classlabels, datalabels, imageloc):
                 #TODO confusion matrix
                 if i[0] == 1:
                     if i[1] not in confmatrix_actual
+            #some of the validation wallpapers have more than one class,
+            #if it didn't get any of them correctly, just grab the first
+            #one you find that it missed for the confusion matrix.
+            else:
 
             """              
             print("Correct: " + str(correct))         
             print("Total: " + str(total)) 
 
 
-
-            """ 
-            tmplbl = np.asarray(tmplbl)
-            #tmplbl = to_categorical(tmplbl, num_classes=19, dtype='float32')
-            print(str(tmplbl))
-            print(tmplbl) 
-            print(str(tmplbl.shape))
-            print(image.shape)
-
-            tmplbl = np.asarray([tmplbl])
-            #TODO create numpy array here with test classes.
-            input()
-            
-            #keras.utils.np_utils.to_categorical
-            print(str(results))
-            input()
-
-            test_images[filename] = predictions[:5]
-            #print("For filename: " + filename + "\n\t" + str(predictions[:5]))
-            """
     print (str(correct / total))
     return test_images
 
