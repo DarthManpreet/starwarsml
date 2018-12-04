@@ -10,7 +10,6 @@ from keras import backend as K
 
 from keras.preprocessing import image as image_utils
 from keras.applications.imagenet_utils import decode_predictions
-from keras.applications.imagenet_utils import preprocess_input
 from keras.preprocessing.image import ImageDataGenerator
 from keras.utils import plot_model
 from keras.utils import to_categorical
@@ -106,6 +105,10 @@ def model_vgg19_transfer(class_cnt):
     return model
 
 
+def model_vgg16(class_cnt):
+    model = VGG16(include_top=True,weights=None,classes=class_cnt)
+    return model
+
 def model_vgg19(class_cnt):
     model = VGG19(include_top=True,weights=None,classes=class_cnt)
     return model
@@ -117,13 +120,13 @@ def model_resnet50(class_cnt):
 
 def train_model(model, train_images, epoch_cnt=30):
 
-    model.compile(loss='mean_squared_error', optimizer='sgd')
+    model.compile(loss='mean_squared_error', optimizer='sgd', metrics=['accuracy'])
 
     i = 0
     for i in range(len(train_images)):
        print("********* Starting Batch " + str(i+1) + " out of " + str(len(train_images)) + "*********")
-       history = model.fit(x=train_images[i][0], y=train_images[i][1], epochs=epoch_cnt, verbose=1)
-       #history = model.fit(x=train_images[i][0], y=train_images[i][1], epochs=epoch_cnt, validation_split=0.25, verbose=1)
+       #history = model.fit(x=train_images[i][0], y=train_images[i][1], epochs=epoch_cnt, verbose=1)
+       history = model.fit(x=train_images[i][0], y=train_images[i][1], epochs=epoch_cnt, validation_split=0.20, verbose=1)
        #history = model.fit(x=train_images[i][0], y=train_images[i][1], epochs=epoch_cnt, validation_data=
        #                     (train_images[i][0], train_images[i][1]), verbose=1)
 
@@ -132,25 +135,24 @@ def train_model(model, train_images, epoch_cnt=30):
 
     #TODO add an option to visual the history or not.       
     # Plot training & validation accuracy values - appears to be missing from the 
-    """
-    print(str(history.history.keys()))
     plt.plot(history.history['acc'])
     plt.plot(history.history['val_acc'])
     plt.title('Model accuracy')
     plt.ylabel('Accuracy')
     plt.xlabel('Epoch')
-    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.legend(['Train', 'Validation'], loc='upper left')
     plt.savefig('./' + model.name + '_training_validation_accuracy.pdf')
-    """
+
+    plt.clf()
 
     # Plot training & validation loss values
     plt.plot(history.history['loss'])
-    #plt.plot(history.history['val_loss'])
+    plt.plot(history.history['val_loss'])
     plt.title('Model loss')
     plt.ylabel('Loss')
     plt.xlabel('Epoch')
-    #plt.legend(['Train', 'Test'], loc='upper left')
-    plt.legend(['Train'], loc='upper left')
+    plt.legend(['Train', 'Validation'], loc='upper left')
+    #plt.legend(['Train'], loc='upper left')
     plt.savefig('./' + model.name + '_training_validation_loss.pdf')
 
     #save off the model so it can be loaded later.
@@ -209,10 +211,10 @@ def classify_topfive_image(modeldata, classlabels, imageloc):
         predictions.append( ('{:.11f}'.format(results[0][c]), labels[str(c)]) )
     predictions.sort()
     predictions.reverse()
-    #test_images[imageloc] = predictions[:5]
+    test_images[imageloc] = predictions[:5]
     #print("For filename: " + filename + "\n\t" + str(predictions[:5]))
 
-    #return test_images
+    return test_images
 
 def verify(modeldata, classlabels, imageloc):
 
@@ -261,18 +263,100 @@ def verify(modeldata, classlabels, imageloc):
 
     return test_images
 
+def accuracy(modeldata, classlabels, datalabels, imageloc):
+
+    model = load_model(modeldata)
+
+    with open(classlabels) as f:
+        clabels = json.load(f)
+    print(str(clabels))
+
+    #should also contain class labels
+    with open(datalabels) as f:
+        dlabels = json.load(f)
+    #print(str(labels))
+    test_images = {}
+
+    total = 0 
+    correct = 0
+    confmatrix_actual = {}
+    confmatrix_predict = {}
+
+    for root, dirs, files in os.walk(imageloc):
+        for filename in files:
+            image = image_utils.load_img(root + filename, target_size=(224,224))
+            image = image_utils.img_to_array(image)
+            image = np.expand_dims(image, axis=0)
+            
+            results = model.predict(x=image)
+
+            predictions = []
+            for c in range(len(results[0])):
+                predictions.append( ('{:.11f}'.format(results[0][c]), clabels[str(c)]) )
+            predictions.sort()
+            predictions.reverse()
+
+            print(str(predictions[0]))
+            print(str(dlabels[filename]))
+            tmplbl = []
+            total = total + 1
+            cor = False
+            for i in dlabels[filename]:
+                if i[1] == predictions[0][1] and i[0] == 1:
+                    print(str(i[1]))
+                    print(str(predictions[0][1]))
+                    print(str(i[0]))
+                    correct = correct + 1
+                    cor = True
+            """
+            #TODO build a basic confusion matrix for our classes
+            if cor == True:
+                #TODO confusion matrix
+                if i[0] == 1:
+                    if i[1] not in confmatrix_actual
+
+            """              
+            print("Correct: " + str(correct))         
+            print("Total: " + str(total)) 
+
+
+
+            """ 
+            tmplbl = np.asarray(tmplbl)
+            #tmplbl = to_categorical(tmplbl, num_classes=19, dtype='float32')
+            print(str(tmplbl))
+            print(tmplbl) 
+            print(str(tmplbl.shape))
+            print(image.shape)
+
+            tmplbl = np.asarray([tmplbl])
+            #TODO create numpy array here with test classes.
+            input()
+            
+            #keras.utils.np_utils.to_categorical
+            print(str(results))
+            input()
+
+            test_images[filename] = predictions[:5]
+            #print("For filename: " + filename + "\n\t" + str(predictions[:5]))
+            """
+    print (str(correct / total))
+    return test_images
+
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("-t", "--train", required=False,
-                    help="train a model")
+    ap.add_argument("-t", "--train", required=False, nargs=2, metavar=('modelname', 'epochs'),
+                    help="train a model, supply <modelname> and how many <epochs>")
     ap.add_argument("-c5", "--classify", required=False, nargs=3, metavar=('modeldata', 'classlabels', 'imageloc'),
                     help="classify images against a model. usage <model data> <classlabels> <image directory>")
     ap.add_argument("-c5i", "--classifyimage", required=False, nargs=3, metavar=('modeldata', 'classlabels', 'imageloc'),
                     help="classify JUST ONE image against a model. usage <model data> <classlabels> <image file>")
     ap.add_argument("-v5", "--verify", required=False, nargs=3, metavar=('modeldata', 'datalabels', 'imageloc'),
                     help="verify images against a model. usage <model data> <datalabels> <image file>")
+    ap.add_argument("-a", "--accuracy", required=False, nargs=4, metavar=('modeldata', 'classlabels', 'datalabels', 'imageloc'),
+                    help="check model accuracy. usage <model data> <classlabels> <datalabels> <image file>")
  
  
     args = vars(ap.parse_args())
@@ -290,24 +374,41 @@ def main():
     elif args['verify'] != None:
         classification = verify(args['verify'][0], args['verify'][1], args['verify'][2])
 
+    elif args['accuracy'] != None:
+        classification = accuracy(args['accuracy'][0], args['accuracy'][1], args['accuracy'][2], args['accuracy'][3])
+
     elif args['train'] != None:
-        #TODO add the type of VGG, resnet50, or whatever that is to be trained on instead of hard coding it like below
         train_images, label_map = import_class_images(classpath)
-    
-        model = model_resnet50(train_images.num_classes)
-        train_model(model, train_images, 75)
 
-        #write out classes to a file
-        with open(model.name + '_classes.json', 'w') as outfile:
-             json.dump(label_map, outfile, indent=4)
+        if args['train'][0] == 'vgg16':
+            print("Training a vgg16 for " + args['train'][1] + " epochs")
+            model = model_vgg16(train_images.num_classes)
+            train_model(model, train_images, int(args['train'][1]))
 
-        model = model_resnet50(train_images.num_classes)
-        train_model(model, train_images, 75)
+            #write out classes to a file
+            with open(model.name + '_classes.json', 'w') as outfile:
+                 json.dump(label_map, outfile, indent=4)
 
-        #write out classes to a file
-        with open(model.name + '_classes.json', 'w') as outfile:
-             json.dump(label_map, outfile, indent=4)
+        elif args['train'][0] == 'vgg19':
+            print("Training a vgg19 for " + args['train'][1] + " epochs")
+   
+            model = model_vgg19(train_images.num_classes)
+            train_model(model, train_images, int(args['train'][1]))
 
+            #write out classes to a file
+            with open(model.name + '_classes.json', 'w') as outfile:
+                 json.dump(label_map, outfile, indent=4)
+
+        elif args['train'][0] == 'resnet50':
+            print("Training a resnet50 for " + args['train'][1] + " epochs")
+            model = model_resnet50(train_images.num_classes)
+            train_model(model, train_images, int(args['train'][1]))
+
+            #write out classes to a file
+            with open(model.name + '_classes.json', 'w') as outfile:
+                 json.dump(label_map, outfile, indent=4)
+    else:
+        print("Nothing to do")
 
 if __name__ == "__main__":
     main()
