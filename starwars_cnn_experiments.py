@@ -235,10 +235,14 @@ def verify(modeldata, classlabels, imageloc):
             tmplbl = [] 
             for i in labels[filename]:
                 tmplbl.append(i[0])
-            tmplbl = np.array(tmplbl)
+            tmplbl = np.asarray(tmplbl)
             #tmplbl = to_categorical(tmplbl, num_classes=19, dtype='float32')
-            print(str(tmplbl)) 
+            print(str(tmplbl))
+            print(tmplbl) 
             print(str(tmplbl.shape))
+            print(image.shape)
+
+            tmplbl = np.asarray([tmplbl])
             #TODO create numpy array here with test classes.
             input()
             
