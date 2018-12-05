@@ -108,6 +108,32 @@ def model_vgg19_transfer(class_cnt):
     #model.summary()
     return model
 
+#creates a brand new model based on the following parameters
+def model_resnet50_transfer(class_cnt):
+    
+    #attempt to start with imagenet weights and train up from there
+    #model_vgg19_conv = VGG19(weights='imagenet', include_top=False)
+
+    model_resnet50_conv = ResNet50(include_top=False,weights='imagenet',classes=class_cnt)
+    input = Input(shape=(224,224,3),name = 'image_input')
+
+    #Use the generated model 
+    output_resnet50_conv = model_resnet50_conv(input)
+
+    #Add fully-connected layers 
+    x = Flatten(name='flatten')(output_resnet50_conv)
+    x = Dense(2048, activation='relu', name='fc1')(x)
+    x = Dense(class_cnt, activation='softmax', name='predictions')(x)
+
+    #Create model 
+    model = Model(input=input, output=x)
+    model.name = 'resnet50_transfer'
+
+    #In the summary, weights and layers from VGG part will be hidden, but they will be fit during the training
+    #model.summary()
+    return model
+
+
 
 def model_vgg16(class_cnt):
     model = VGG16(include_top=True,weights=None,classes=class_cnt)
@@ -403,10 +429,30 @@ def main():
             with open(model.name + '_classes.json', 'w') as outfile:
                  json.dump(label_map, outfile, indent=4)
 
+        elif args['train'][0] == 'vgg16_transfer':
+            print("Training a vgg16 for " + args['train'][1] + " epochs")
+            model = model_vgg16_transfer(train_images.num_classes)
+            train_model(model, train_images, int(args['train'][1]))
+
+            #write out classes to a file
+            with open(model.name + '_classes.json', 'w') as outfile:
+                 json.dump(label_map, outfile, indent=4)
+
+
         elif args['train'][0] == 'vgg19':
             print("Training a vgg19 for " + args['train'][1] + " epochs")
    
             model = model_vgg19(train_images.num_classes)
+            train_model(model, train_images, int(args['train'][1]))
+
+            #write out classes to a file
+            with open(model.name + '_classes.json', 'w') as outfile:
+                 json.dump(label_map, outfile, indent=4)
+
+        elif args['train'][0] == 'vgg19_transfer':
+            print("Training a vgg19 for " + args['train'][1] + " epochs")
+   
+            model = model_vgg19_transfer(train_images.num_classes)
             train_model(model, train_images, int(args['train'][1]))
 
             #write out classes to a file
@@ -421,6 +467,16 @@ def main():
             #write out classes to a file
             with open(model.name + '_classes.json', 'w') as outfile:
                  json.dump(label_map, outfile, indent=4)
+
+        elif args['train'][0] == 'resnet50_transfer':
+            print("Training a resnet50 for " + args['train'][1] + " epochs")
+            model = model_resnet50_transfer(train_images.num_classes)
+            train_model(model, train_images, int(args['train'][1]))
+
+            #write out classes to a file
+            with open(model.name + '_classes.json', 'w') as outfile:
+                 json.dump(label_map, outfile, indent=4)
+ 
     else:
         print("Nothing to do")
 
