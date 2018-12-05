@@ -25,6 +25,10 @@ import argparse
 import os
 import numpy as np
 
+from sklearn.metrics import confusion_matrix
+import seaborn as sb
+import pandas as pd
+
 classpath = './Classes/'
 datapath = './TestData/'
 
@@ -281,6 +285,9 @@ def accuracy(modeldata, classlabels, datalabels, imageloc):
     correct = 0
     confmatrix =  [ [ ] ]
 
+    true_label = []
+    prediction_label = []
+
     for root, dirs, files in os.walk(imageloc):
         for filename in files:
             image = image_utils.load_img(root + filename, target_size=(224,224))
@@ -297,6 +304,7 @@ def accuracy(modeldata, classlabels, datalabels, imageloc):
 
             print(str(predictions[0]))
             print(str(dlabels[filename]))
+
             tmplbl = []
             total = total + 1
             cor = False
@@ -307,6 +315,18 @@ def accuracy(modeldata, classlabels, datalabels, imageloc):
                     print(str(i[0]))
                     correct = correct + 1
                     cor = True
+
+                    true_label.append(i[1])
+                    prediction_label.append(predictions[0][1])
+            
+            if cor is False:
+                for i in dlabels[filename]:
+                    if i[0] == 1:
+                        true_label.append(i[1])
+                        prediction_label.append(predictions[0][1])
+                        break
+
+
             """
             #TODO build a basic confusion matrix for our classes
             if cor == True:
@@ -318,10 +338,21 @@ def accuracy(modeldata, classlabels, datalabels, imageloc):
             #one you find that it missed for the confusion matrix.
             else:
 
-            """              
+            """
+
             print("Correct: " + str(correct))         
             print("Total: " + str(total)) 
 
+    cm = pd.DataFrame(confusion_matrix(true_label, prediction_label, labels=["ATAT","Ben Kenobi","Boba Fett","C3PO","Chewbacca","Darth Vader","Death Star","Han Solo","Lando Calrissian","Luke Skywalker","Millennium Falcon","Princess Leia","R2D2","Star Destroyer","Storm Trooper","Tie Fighter","Wicket","X-Wing","Yoda"]), index=["ATAT","Ben Kenobi","Boba Fett","C3PO","Chewbacca","Darth Vader","Death Star","Han Solo","Lando Calrissian","Luke Skywalker","Millennium Falcon","Princess Leia","R2D2","Star Destroyer","Storm Trooper","Tie Fighter","Wicket","X-Wing","Yoda"], columns=["ATAT","Ben Kenobi","Boba Fett","C3PO","Chewbacca","Darth Vader","Death Star","Han Solo","Lando Calrissian","Luke Skywalker","Millennium Falcon","Princess Leia","R2D2","Star Destroyer","Storm Trooper","Tie Fighter","Wicket","X-Wing","Yoda"])
+    plt.figure(1)
+    sb.heatmap(cm, annot=True, fmt="d", cmap="Greens", linewidths=1, linecolor='black')
+    plt.title("Confusion Matrix")
+    plt.ylabel("Actual")
+    plt.yticks(rotation=0)
+    plt.xlabel("Predicted")
+    plt.tight_layout()
+    plt.savefig("exp_cm.png")
+    plt.clf()
 
     print (str(correct / total))
     return test_images
